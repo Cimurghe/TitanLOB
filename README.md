@@ -9,7 +9,7 @@
 
 <p align="center">
   <strong>High-Frequency Trading Limit Order Book Engine</strong><br>
-  Sub-100ns median latency • 10M+ orders/sec throughput • Production-grade architecture
+  Sub-30ns median latency • 23M+ orders/sec throughput • Production-grade architecture
 </p>
 
 ---
@@ -20,8 +20,8 @@ TitanLOB is a high-performance limit order book (LOB) engine designed for quanti
 
 ### Key Features
 
-- **Ultra-Low Latency**: Sub-80ns median latency per operation using cache-aligned data structures
-- **High Throughput**: 10M+ messages/second on commodity hardware  
+- **Ultra-Low Latency**: Sub-30ns median latency per operation using cache-aligned data structures
+- **High Throughput**: 23M+ messages/second on commodity hardware  
 - **Real Market Data**: Native integration with Kraken L3 WebSocket feed (order-by-order data)
 - **Live Visualization**: Professional 4-quadrant trading dashboard with depth charts and BBO history
 - **Binary Protocol**: Compact wire format for minimal serialization overhead
@@ -61,15 +61,18 @@ TitanLOB is a high-performance limit order book (LOB) engine designed for quanti
 
 ## Performance
 
-Benchmarked on Intel i7-12700K, DDR5-4800, Ubuntu 22.04:
+Benchmarked with 6.18M real Kraken L3 messages (BTC/USD):
 
 | Metric | Value |
 |--------|-------|
-| Median Latency (P50) | **67 ns** |
-| P99 Latency | **142 ns** |
-| P99.9 Latency | **298 ns** |
-| Throughput | **12.4 M msgs/sec** |
-| Memory (Order Book) | ~2.5 GB |
+| Median Latency (P50) | **26 ns** |
+| P90 Latency | **59.5 ns** |
+| P95 Latency | **120.5 ns** |
+| P99 Latency | **286.8 ns** |
+| P99.9 Latency | **6.9 μs** |
+| Throughput (with latency measurement) | **8.85 M msgs/sec** |
+| Pure Throughput | **23.80 M msgs/sec** |
+| Memory (Order Book) | ~3 GB |
 
 ---
 
@@ -90,7 +93,7 @@ pip3 install websocket-client websockets
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/TitanLOB.git
+git clone https://github.com/Cimurghe/TitanLOB.git
 cd TitanLOB
 
 # Build main application (Live Mode)
@@ -171,17 +174,21 @@ python3 kraken_normalizer.py btc_l3.json btc_l3.dat
 ╔══════════════════════════════════════════════════════════════════╗
 ║ BTC L3 Message Replay - Per-Message Latency                      ║
 ╠══════════════════════════════════════════════════════════════════╣
-║ Samples: 1,247,832                                               ║
+║ Samples: 6080010                                                 ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║ LATENCY (nanoseconds)                                            ║
-║   Min:           23.0                                            ║
-║   Mean:          71.4                                            ║
-║   Median:        67.0 (P50)                                      ║
-║   P99:          142.0 ◀ CRITICAL                                 ║
-║   P99.9:        298.0 ◀ TAIL                                     ║
+║   Min:           13.0                                            ║
+║   Mean:          93.9                                            ║
+║   Median:        26.0 (P50)                                      ║
+║   P90:           59.5                                            ║
+║   P95:           120.5                                           ║
+║   P99:           286.8 ◀ CRITICAL                                ║
+║   P99.9:         6938.6 ◀ TAIL                                   ║
 ╠══════════════════════════════════════════════════════════════════╣
-║ THROUGHPUT: 12,400,000 ops/sec (12.40 M ops/s)                   ║
+║ THROUGHPUT: 8,845,216 ops/sec (8.85 M ops/s)                     ║
 ╚══════════════════════════════════════════════════════════════════╝
+
+Pure Throughput: 23.80 M msgs/sec
 ```
 
 ---
@@ -213,7 +220,6 @@ TitanLOB/
 │
 ├── Visualization
 │   ├── Titan_Dash.html       # Professional trading dashboard
-│   ├── titan_ws_bridge.py    # Python WebSocket bridge (alternative)
 │   └── tui.h                 # Terminal UI utilities
 │
 ├── Logging
@@ -366,7 +372,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 - Market data provided by [Kraken](https://www.kraken.com) L3 WebSocket API
-- Inspired by production exchange matching engines
+- Architecture inspired by [this HFT blog post](https://web.archive.org/web/20110219163448/http://howtohft.wordpress.com/2011/02/15/how-to-build-a-fast-limit-order-book/) and Optiver engineering discussions
 
 ---
 
