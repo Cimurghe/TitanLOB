@@ -1,0 +1,35 @@
+# Compiled objects
+*.o
+*.obj
+*.exe
+titan
+titan_bench
+titan_replay
+
+# Binary data files
+*.dat
+*.bin
+*.deepflow
+
+# Market data
+*.json
+kraken_*.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# Build directories
+build/
+cmake-build-*/
+third_party/

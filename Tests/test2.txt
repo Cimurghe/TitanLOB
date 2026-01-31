@@ -1,0 +1,142 @@
+#include "order_book.h"
+#include <iostream>
+#include <iomanip>
+#include <map>
+#include <deque>
+
+void add_order(const std::string& side, double price, int quantity,
+               const std::string& order_id,
+               std::map<double, std::deque<Order>>& bids,
+                std::map<double, std::deque<Order>>& asks){
+    if (side == "buy"){
+        bids[price].push_back({order_id, side, price, quantity});
+    }
+    else if (side == "sell"){ 
+        asks[price].push_back({order_id, side, price, quantity});
+    }
+}
+void display_book(const std::map<double, std::deque<Order>>& bids,
+                  const std::map<double, std::deque<Order>>& asks){
+    std::cout << "Bids:" << std::endl;
+   for (auto it = bids.rbegin(); it != bids.rend(); ++it){
+        std::cout << it->first << ": ";
+        int current_total =0;
+        for (const auto& order : it->second){
+            std::cout << "[" << order.order_id << ", " << order.quantity << "] ";
+            current_total += order.quantity;
+        }
+        std::cout << "total: " << current_total << std::endl;
+    }
+    std::cout << "Asks:" << std::endl;
+    for (auto it = asks.begin(); it != asks.end(); ++it){
+        std::cout << it->first << ": ";
+        int current_total =0;
+        for (const auto& order : it->second){
+            std::cout << "[" << order.order_id << ", " << order.quantity << "] ";
+            current_total += order.quantity;
+        }
+        std::cout << "total: " << current_total << std::endl;
+    }
+}
+void cancel_order(const std::string& order_id,
+                  std::map<double, std::deque<Order>>& bids,
+                  std::map<double, std::deque<Order>>& asks){
+    for (auto& [price, orders]: bids){
+        for (auto it = orders.begin(); it != orders.end(); ++it){
+            if (it->order_id == order_id){
+                orders.erase(it);
+                if (orders.empty()){
+                    bids.erase(price);
+                }
+                return;
+            }
+        }
+    }
+    for (auto& [price, orders]: asks){
+        for (auto it = orders.begin(); it != orders.end(); ++it){
+            if (it->order_id == order_id){
+                orders.erase(it);
+                if (orders.empty()){
+                    asks.erase(price);
+                }
+                return;
+            }
+        }
+    }
+}
+void match_order(const std::string& side, double price, int quantity,
+               const std::string& order_id,
+               std::map<double, std::deque<Order>>& bids,
+                std::map<double, std::deque<Order>>& asks){
+    if (side == "buy"){
+        while (quantity > 0 && !asks.empty()){
+            auto it = asks.begin();
+            double ask_price = it->first;
+            auto& orders = it->second;
+            if (ask_price <= price){
+                for (auto order_it = orders.begin(); order_it != orders.end() && quantity > 0; ){
+                    int match_qty = 0;
+                    double execution_price = ask_price;
+                    std::string matched_order_id = order_it->order_id;
+                    if (order_it->quantity <= quantity){
+                        match_qty = order_it->quantity;
+                        quantity -= order_it->quantity;
+                        order_it = orders.erase(order_it);
+                        std::cout << "TRADE: " << order_id << " x " << matched_order_id
+          << ", " << match_qty<< " @ " << execution_price<< std::endl;
+                    } else {
+                        match_qty = quantity;
+                        order_it->quantity -= quantity;
+                        quantity = 0;
+                        ++order_it;
+                        std::cout << "TRADE: " << order_id << " x " << matched_order_id
+          << ", " << match_qty<< " @ " << execution_price<< std::endl;
+
+                    }
+                }
+                if (orders.empty()){
+                    asks.erase(ask_price);
+                }
+            } else {
+                break;
+            }
+        }
+    } else if (side == "sell"){
+        while (quantity > 0 && !bids.empty()){
+            auto it = bids.rbegin();
+            double bid_price = it->first;
+            auto& orders = it->second;
+            if (bid_price >= price){
+                for (auto order_it = orders.begin(); order_it != orders.end() && quantity > 0; ){
+                    int match_qty = 0;
+                    double execution_price = bid_price;
+                    std::string matched_order_id = order_it->order_id;
+                    if (order_it->quantity <= quantity){
+                        match_qty = order_it->quantity;
+                        quantity -= order_it->quantity;
+                        order_it = orders.erase(order_it);
+                        std::cout << "TRADE: " << order_id << " x " << matched_order_id
+          << ", " << match_qty<< " @ " << execution_price<< std::endl;
+                    } else {
+                        match_qty = quantity;
+                        order_it->quantity -= quantity;
+                        quantity = 0;
+                        ++order_it;
+                        std::cout << "TRADE: " << order_id << " x " << matched_order_id
+          << ", " << match_qty<< " @ " << execution_price<< std::endl;
+
+                    }
+                }
+                if (orders.empty()){
+                    bids.erase(bid_price);
+                }
+            } else {
+                break;
+            }
+        }
+
+}
+ if (quantity > 0){
+        add_order(side, price, quantity, order_id, bids, asks);
+    }
+}

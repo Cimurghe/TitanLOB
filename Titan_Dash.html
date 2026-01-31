@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TitanLOB Professional Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0b0d;
+            --bg-panel: #0d0f12;
+            --border-color: #252a36;
+            --text-primary: #e8eaed;
+            --text-secondary: #8b919e;
+            --ask-red: #ff5f56;
+            --ask-red-dim: rgba(255, 95, 86, 0.15);
+            --ask-red-fill: rgba(255, 95, 86, 0.3);
+            --bid-green: #00dc82;
+            --bid-green-dim: rgba(0, 220, 130, 0.15);
+            --bid-green-fill: rgba(0, 220, 130, 0.3);
+            --accent-blue: #4a9eff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg-primary);
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+
+        .dashboard {
+            width: 100vw;
+            height: calc(100vh - 24px);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 65fr 35fr;
+            gap: 2px;
+            background: var(--border-color);
+            padding: 2px;
+        }
+
+        .quadrant {
+            background: var(--bg-panel);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quadrant-header {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 28px;
+            background: linear-gradient(180deg, rgba(37, 42, 54, 0.9) 0%, rgba(13, 15, 18, 0.9) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            z-index: 10;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .quadrant-title {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .quadrant-indicator {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--bid-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        #q1-table {
+            position: absolute;
+            top: 28px; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1.2fr;
+            padding: 6px 12px;
+            font-size: 9px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.3);
+        }
+
+        .table-header span:nth-child(2),
+        .table-header span:nth-child(3) { text-align: right; }
+
+        .asks-container, .bids-container {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .asks-container { justify-content: flex-end; }
+
+        .order-row {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1.2fr;
+            padding: 3px 12px;
+            font-size: 11px;
+            position: relative;
+        }
+
+        .order-row .price { font-weight: 500; }
+        .order-row .amount, .order-row .usd { text-align: right; }
+
+        .order-row.ask { color: var(--ask-red); }
+        .order-row.ask .amount, .order-row.ask .usd { color: rgba(255, 95, 86, 0.7); }
+        .order-row.bid { color: var(--bid-green); }
+        .order-row.bid .amount, .order-row.bid .usd { color: rgba(0, 220, 130, 0.7); }
+
+        .order-row .volume-bar {
+            position: absolute;
+            top: 0; bottom: 0;
+            z-index: -1;
+        }
+
+        .order-row.ask .volume-bar {
+            right: 0;
+            background: linear-gradient(90deg, transparent, var(--ask-red-dim));
+        }
+
+        .order-row.bid .volume-bar {
+            left: 0;
+            background: linear-gradient(270deg, transparent, var(--bid-green-dim));
+        }
+
+        .mid-market-divider {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .mid-price-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .spread-value {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--accent-blue);
+        }
+
+        .canvas-container {
+            position: absolute;
+            top: 28px; left: 0; right: 0; bottom: 0;
+        }
+
+        .canvas-container canvas {
+            width: 100%; height: 100%;
+            display: block;
+        }
+
+        .status-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 24px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            z-index: 100;
+        }
+
+        .status-left, .status-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+        }
+
+        .status-dot.connected {
+            background: var(--bid-green);
+            box-shadow: 0 0 8px var(--bid-green);
+        }
+
+        .status-dot.disconnected {
+            background: var(--ask-red);
+            box-shadow: 0 0 8px var(--ask-red);
+        }
+
+        .status-dot.simulated {
+            background: #f5a623;
+            box-shadow: 0 0 8px #f5a623;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="quadrant" id="quadrant-1">
+            <div class="quadrant-header">
+                <span class="quadrant-title">Order Book</span>
+                <div class="quadrant-indicator"></div>
+            </div>
+            <div id="q1-table">
+                <div class="table-header">
+                    <span>Price</span>
+                    <span>Amount [BTC]</span>
+                    <span>Amount [USD]</span>
+                </div>
+                <div class="asks-container" id="asks-container"></div>
+                <div class="mid-market-divider">
+                    <span class="mid-price-value" id="mid-price">--</span>
+                    <span class="spread-value" id="spread-value">--</span>
+                </div>
+                <div class="bids-container" id="bids-container"></div>
+            </div>
+        </div>
+
+        <div class="quadrant" id="quadrant-2">
+            <div class="quadrant-header">
+                <span class="quadrant-title">Visual Order Book</span>
+                <div class="quadrant-indicator"></div>
+            </div>
+            <div class="canvas-container">
+                <canvas id="canvas-orderbook"></canvas>
+            </div>
+        </div>
+
+        <div class="quadrant" id="quadrant-3">
+            <div class="quadrant-header">
+                <span class="quadrant-title">Depth</span>
+                <div class="quadrant-indicator"></div>
+            </div>
+            <div class="canvas-container">
+                <canvas id="canvas-depth"></canvas>
+            </div>
+        </div>
+
+        <div class="quadrant" id="quadrant-4">
+            <div class="quadrant-header">
+                <span class="quadrant-title">BBO Price Chart</span>
+                <div class="quadrant-indicator"></div>
+            </div>
+            <div class="canvas-container">
+                <canvas id="canvas-bbo"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="status-item">
+                <div class="status-dot" id="connection-status"></div>
+                <span id="connection-text">Connecting...</span>
+            </div>
+            <div class="status-item">
+                <span>Updates: <span id="update-rate">0</span>/s</span>
+            </div>
+        </div>
+        <div class="status-right">
+            <div class="status-item"><span>TitanLOB v1.0</span></div>
+            <div class="status-item"><span id="current-time"></span></div>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            WS_URL: 'ws://localhost:8080',
+            RECONNECT_DELAY: 3000,
+            MAX_BBO_POINTS: 200,
+            VISIBLE_LEVELS: 8,
+            SIMULATION_MODE: false,
+            SIMULATION_UPDATE_INTERVAL: 100
+        };
+
+        const COLORS = {
+            askRed: '#ff5f56',
+            askRedFill: 'rgba(255, 95, 86, 0.3)',
+            bidGreen: '#00dc82',
+            bidGreenFill: 'rgba(0, 220, 130, 0.3)',
+            textSecondary: '#8b919e',
+            gridLine: 'rgba(255, 255, 255, 0.05)'
+        };
+
+        let orderBookData = { bids: [], asks: [] };
+        let bboHistory = [];
+        let updateCounter = 0;
+        let lastUpdateTime = Date.now();
+        let needsRender = true;
+
+        const asksContainer = document.getElementById('asks-container');
+        const bidsContainer = document.getElementById('bids-container');
+        const midPriceEl = document.getElementById('mid-price');
+        const spreadValueEl = document.getElementById('spread-value');
+        const connectionStatus = document.getElementById('connection-status');
+        const connectionText = document.getElementById('connection-text');
+        const updateRateEl = document.getElementById('update-rate');
+        const currentTimeEl = document.getElementById('current-time');
+
+        const canvasOrderbook = document.getElementById('canvas-orderbook');
+        const canvasDepth = document.getElementById('canvas-depth');
+        const canvasBBO = document.getElementById('canvas-bbo');
+
+        const ctxOrderbook = canvasOrderbook.getContext('2d');
+        const ctxDepth = canvasDepth.getContext('2d');
+        const ctxBBO = canvasBBO.getContext('2d');
+
+        function formatPrice(p) { return p.toFixed(2); }
+        function formatAmount(a) { return a >= 1 ? a.toFixed(3) : a >= 0.1 ? a.toFixed(4) : a.toFixed(5); }
+        function formatUSD(u) { return u >= 1e6 ? (u/1e6).toFixed(2)+'M' : u >= 1e3 ? (u/1e3).toFixed(2)+'K' : u.toFixed(2); }
+        function formatTime(d) { return d.toLocaleTimeString('en-US', { hour12: false }); }
+
+        function setupCanvas(canvas, ctx) {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.scale(dpr, dpr);
+            return { width: rect.width, height: rect.height };
+        }
+
+        function clearCanvas(ctx, canvas) {
+            const dpr = window.devicePixelRatio || 1;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.scale(dpr, dpr);
+        }
+
+        function renderOrderTable() {
+            const asks = orderBookData.asks.slice(0, CONFIG.VISIBLE_LEVELS).reverse();
+            const bids = orderBookData.bids.slice(0, CONFIG.VISIBLE_LEVELS);
+            const maxAskVol = Math.max(...orderBookData.asks.slice(0, CONFIG.VISIBLE_LEVELS).map(a => a[1]), 0.001);
+            const maxBidVol = Math.max(...bids.map(b => b[1]), 0.001);
+
+            asksContainer.innerHTML = asks.map(([price, size]) => {
+                const usd = price * size;
+                const pct = (size / maxAskVol) * 100;
+                return `<div class="order-row ask"><span class="price">${formatPrice(price)}</span><span class="amount">${formatAmount(size)}</span><span class="usd">${formatUSD(usd)}</span><div class="volume-bar" style="width:${pct}%"></div></div>`;
+            }).join('');
+
+            bidsContainer.innerHTML = bids.map(([price, size]) => {
+                const usd = price * size;
+                const pct = (size / maxBidVol) * 100;
+                return `<div class="order-row bid"><span class="price">${formatPrice(price)}</span><span class="amount">${formatAmount(size)}</span><span class="usd">${formatUSD(usd)}</span><div class="volume-bar" style="width:${pct}%"></div></div>`;
+            }).join('');
+
+            if (bids.length && orderBookData.asks.length) {
+                const bestBid = orderBookData.bids[0][0];
+                const bestAsk = orderBookData.asks[0][0];
+                const mid = (bestBid + bestAsk) / 2;
+                const spread = bestAsk - bestBid;
+                midPriceEl.textContent = formatPrice(mid);
+                spreadValueEl.textContent = `${formatPrice(spread)} (${((spread/mid)*100).toFixed(3)}%)`;
+            }
+        }
+
+        function renderOrderBookHistogram() {
+            const { width, height } = setupCanvas(canvasOrderbook, ctxOrderbook);
+            clearCanvas(ctxOrderbook, canvasOrderbook);
+
+            const asks = orderBookData.asks.slice(0, CONFIG.VISIBLE_LEVELS).reverse();
+            const bids = orderBookData.bids.slice(0, CONFIG.VISIBLE_LEVELS);
+            const maxVol = Math.max(...[...asks, ...bids].map(x => x[1]), 0.001);
+            const padding = { top: 10, bottom: 10, left: 10, right: 40 };
+            const totalRows = asks.length + bids.length;
+            const rowH = Math.min((height - padding.top - padding.bottom) / totalRows, 28);
+            const barMax = width - padding.left - padding.right;
+            const gap = 3;
+
+            asks.forEach(([_, size], i) => {
+                const barW = (size / maxVol) * barMax;
+                const y = padding.top + i * rowH;
+                const h = rowH - gap;
+
+                const grad = ctxOrderbook.createLinearGradient(padding.left, 0, padding.left + barW, 0);
+                grad.addColorStop(0, 'rgba(255, 95, 86, 0.6)');
+                grad.addColorStop(1, COLORS.askRedFill);
+                ctxOrderbook.fillStyle = grad;
+                ctxOrderbook.fillRect(padding.left, y, barW, h);
+                ctxOrderbook.strokeStyle = COLORS.askRed;
+                ctxOrderbook.lineWidth = 1;
+                ctxOrderbook.strokeRect(padding.left + 0.5, y + 0.5, barW - 1, h - 1);
+                ctxOrderbook.fillStyle = COLORS.askRed;
+                ctxOrderbook.font = '10px JetBrains Mono';
+                ctxOrderbook.textAlign = 'left';
+                ctxOrderbook.textBaseline = 'middle';
+                ctxOrderbook.fillText(formatAmount(size), padding.left + barW + 5, y + h / 2);
+            });
+
+            bids.forEach(([_, size], i) => {
+                const barW = (size / maxVol) * barMax;
+                const y = padding.top + (asks.length + i) * rowH;
+                const h = rowH - gap;
+
+                const grad = ctxOrderbook.createLinearGradient(padding.left, 0, padding.left + barW, 0);
+                grad.addColorStop(0, 'rgba(0, 220, 130, 0.6)');
+                grad.addColorStop(1, COLORS.bidGreenFill);
+                ctxOrderbook.fillStyle = grad;
+                ctxOrderbook.fillRect(padding.left, y, barW, h);
+                ctxOrderbook.strokeStyle = COLORS.bidGreen;
+                ctxOrderbook.lineWidth = 1;
+                ctxOrderbook.strokeRect(padding.left + 0.5, y + 0.5, barW - 1, h - 1);
+                ctxOrderbook.fillStyle = COLORS.bidGreen;
+                ctxOrderbook.font = '10px JetBrains Mono';
+                ctxOrderbook.textAlign = 'left';
+                ctxOrderbook.textBaseline = 'middle';
+                ctxOrderbook.fillText(formatAmount(size), padding.left + barW + 5, y + h / 2);
+            });
+        }
+
+        function renderDepthChart() {
+            const { width, height } = setupCanvas(canvasDepth, ctxDepth);
+            clearCanvas(ctxDepth, canvasDepth);
+            const pad = { top: 20, bottom: 30, left: 50, right: 50 };
+            const cw = width - pad.left - pad.right;
+            const ch = height - pad.top - pad.bottom;
+
+            if (!orderBookData.bids.length || !orderBookData.asks.length) return;
+
+            let askSum = 0, bidSum = 0;
+            const asksCum = orderBookData.asks.map(([p, v]) => { askSum += v; return [p, askSum]; });
+            const bidsCum = orderBookData.bids.map(([p, v]) => { bidSum += v; return [p, bidSum]; });
+
+            const allP = [...bidsCum.map(b => b[0]), ...asksCum.map(a => a[0])];
+            const minP = Math.min(...allP), maxP = Math.max(...allP), rangeP = maxP - minP;
+            const maxV = Math.max(askSum, bidSum);
+
+            const pToX = p => pad.left + ((p - minP) / rangeP) * cw;
+            const vToY = v => pad.top + ch - (v / maxV) * ch;
+
+            ctxDepth.strokeStyle = COLORS.gridLine;
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + (ch / 4) * i;
+                ctxDepth.beginPath();
+                ctxDepth.moveTo(pad.left, y);
+                ctxDepth.lineTo(width - pad.right, y);
+                ctxDepth.stroke();
+            }
+
+            // Bids fill
+            ctxDepth.beginPath();
+            ctxDepth.moveTo(pToX(bidsCum[0][0]), vToY(0));
+            bidsCum.forEach(([p, v], i) => {
+                if (i > 0) ctxDepth.lineTo(pToX(p), vToY(bidsCum[i-1][1]));
+                ctxDepth.lineTo(pToX(p), vToY(v));
+            });
+            ctxDepth.lineTo(pToX(bidsCum[bidsCum.length-1][0]), vToY(0));
+            ctxDepth.closePath();
+            const bidGrad = ctxDepth.createLinearGradient(0, pad.top, 0, height - pad.bottom);
+            bidGrad.addColorStop(0, COLORS.bidGreenFill);
+            bidGrad.addColorStop(1, 'rgba(0, 220, 130, 0.05)');
+            ctxDepth.fillStyle = bidGrad;
+            ctxDepth.fill();
+
+            // Bids stroke
+            ctxDepth.beginPath();
+            ctxDepth.moveTo(pToX(bidsCum[0][0]), vToY(bidsCum[0][1]));
+            for (let i = 1; i < bidsCum.length; i++) {
+                ctxDepth.lineTo(pToX(bidsCum[i][0]), vToY(bidsCum[i-1][1]));
+                ctxDepth.lineTo(pToX(bidsCum[i][0]), vToY(bidsCum[i][1]));
+            }
+            ctxDepth.strokeStyle = COLORS.bidGreen;
+            ctxDepth.lineWidth = 2;
+            ctxDepth.stroke();
+
+            // Asks fill
+            ctxDepth.beginPath();
+            ctxDepth.moveTo(pToX(asksCum[0][0]), vToY(0));
+            asksCum.forEach(([p, v], i) => {
+                if (i > 0) ctxDepth.lineTo(pToX(p), vToY(asksCum[i-1][1]));
+                ctxDepth.lineTo(pToX(p), vToY(v));
+            });
+            ctxDepth.lineTo(pToX(asksCum[asksCum.length-1][0]), vToY(0));
+            ctxDepth.closePath();
+            const askGrad = ctxDepth.createLinearGradient(0, pad.top, 0, height - pad.bottom);
+            askGrad.addColorStop(0, COLORS.askRedFill);
+            askGrad.addColorStop(1, 'rgba(255, 95, 86, 0.05)');
+            ctxDepth.fillStyle = askGrad;
+            ctxDepth.fill();
+
+            // Asks stroke
+            ctxDepth.beginPath();
+            ctxDepth.moveTo(pToX(asksCum[0][0]), vToY(asksCum[0][1]));
+            for (let i = 1; i < asksCum.length; i++) {
+                ctxDepth.lineTo(pToX(asksCum[i][0]), vToY(asksCum[i-1][1]));
+                ctxDepth.lineTo(pToX(asksCum[i][0]), vToY(asksCum[i][1]));
+            }
+            ctxDepth.strokeStyle = COLORS.askRed;
+            ctxDepth.lineWidth = 2;
+            ctxDepth.stroke();
+
+            ctxDepth.font = '11px JetBrains Mono';
+            ctxDepth.textAlign = 'center';
+            ctxDepth.fillStyle = COLORS.bidGreen;
+            ctxDepth.fillText('Bids', pad.left + cw * 0.25, height - 8);
+            ctxDepth.fillStyle = COLORS.askRed;
+            ctxDepth.fillText('Asks', pad.left + cw * 0.75, height - 8);
+        }
+
+        function renderBBOChart() {
+            const { width, height } = setupCanvas(canvasBBO, ctxBBO);
+            clearCanvas(ctxBBO, canvasBBO);
+            const pad = { top: 20, bottom: 25, left: 60, right: 20 };
+            const cw = width - pad.left - pad.right;
+            const ch = height - pad.top - pad.bottom;
+
+            // Only display the last 200 points (sliding window)
+            const maxDisplayPoints = 200;
+            const displayHistory = bboHistory.slice(-maxDisplayPoints);
+
+            if (displayHistory.length < 2) return;
+
+            // Calculate the spread range to zoom into
+            const allBids = displayHistory.map(p => p.bid);
+            const allAsks = displayHistory.map(p => p.ask);
+            
+            const minBid = Math.min(...allBids);
+            const maxBid = Math.max(...allBids);
+            const minAsk = Math.min(...allAsks);
+            const maxAsk = Math.max(...allAsks);
+            const avgSpread = displayHistory.reduce((s, p) => s + (p.ask - p.bid), 0) / displayHistory.length;
+            
+            // Zoom: center on mid-price with padding based on spread
+            const midPrice = (minBid + maxAsk) / 2;
+            const dataRange = maxAsk - minBid;
+            const zoomPadding = Math.max(avgSpread * 6, dataRange * 1.2);
+            const minP = midPrice - zoomPadding / 2;
+            const maxP = midPrice + zoomPadding / 2;
+            const rangeP = maxP - minP;
+
+            // X maps to fixed window size, not total history
+            const tToX = i => pad.left + (i / (maxDisplayPoints - 1)) * cw;
+            const pToY = p => {
+                const norm = (p - minP) / rangeP;
+                return pad.top + ch - norm * ch;
+            };
+
+            // Draw grid
+            ctxBBO.strokeStyle = COLORS.gridLine;
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + (ch / 4) * i;
+                ctxBBO.beginPath();
+                ctxBBO.moveTo(pad.left, y);
+                ctxBBO.lineTo(width - pad.right, y);
+                ctxBBO.stroke();
+                const price = maxP - (rangeP / 4) * i;
+                ctxBBO.fillStyle = COLORS.textSecondary;
+                ctxBBO.font = '9px JetBrains Mono';
+                ctxBBO.textAlign = 'right';
+                ctxBBO.textBaseline = 'middle';
+                ctxBBO.fillText(formatPrice(price), pad.left - 5, y);
+            }
+
+            // Calculate starting index offset for sliding effect
+            const startOffset = maxDisplayPoints - displayHistory.length;
+
+            // Fill area between bid and ask for visibility
+            ctxBBO.beginPath();
+            ctxBBO.moveTo(tToX(startOffset), pToY(displayHistory[0].ask));
+            for (let i = 1; i < displayHistory.length; i++) {
+                const x = tToX(startOffset + i);
+                ctxBBO.lineTo(x, pToY(displayHistory[i-1].ask));
+                ctxBBO.lineTo(x, pToY(displayHistory[i].ask));
+            }
+            for (let i = displayHistory.length - 1; i >= 0; i--) {
+                const x = tToX(startOffset + i);
+                if (i < displayHistory.length - 1) {
+                    ctxBBO.lineTo(x, pToY(displayHistory[i+1].bid));
+                }
+                ctxBBO.lineTo(x, pToY(displayHistory[i].bid));
+            }
+            ctxBBO.closePath();
+            ctxBBO.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            ctxBBO.fill();
+
+            // Ask line (stepped)
+            ctxBBO.beginPath();
+            ctxBBO.strokeStyle = COLORS.askRed;
+            ctxBBO.lineWidth = 2;
+            displayHistory.forEach((pt, i) => {
+                const x = tToX(startOffset + i), y = pToY(pt.ask);
+                if (i === 0) ctxBBO.moveTo(x, y);
+                else {
+                    ctxBBO.lineTo(x, pToY(displayHistory[i-1].ask));
+                    ctxBBO.lineTo(x, y);
+                }
+            });
+            ctxBBO.stroke();
+
+            // Bid line (stepped)
+            ctxBBO.beginPath();
+            ctxBBO.strokeStyle = COLORS.bidGreen;
+            ctxBBO.lineWidth = 2;
+            displayHistory.forEach((pt, i) => {
+                const x = tToX(startOffset + i), y = pToY(pt.bid);
+                if (i === 0) ctxBBO.moveTo(x, y);
+                else {
+                    ctxBBO.lineTo(x, pToY(displayHistory[i-1].bid));
+                    ctxBBO.lineTo(x, y);
+                }
+            });
+            ctxBBO.stroke();
+
+            // Legend
+            ctxBBO.font = '9px JetBrains Mono';
+            ctxBBO.textAlign = 'left';
+            ctxBBO.fillStyle = COLORS.askRed;
+            ctxBBO.fillText('Ask', pad.left + 10, pad.top + 10);
+            ctxBBO.fillStyle = COLORS.bidGreen;
+            ctxBBO.fillText('Bid', pad.left + 50, pad.top + 10);
+        }
+
+        function processOrderBookData(data) {
+            orderBookData = data;
+            if (data.bids.length && data.asks.length) {
+                bboHistory.push({ timestamp: Date.now(), bid: data.bids[0][0], ask: data.asks[0][0] });
+                if (bboHistory.length > CONFIG.MAX_BBO_POINTS) bboHistory.shift();
+            }
+            updateCounter++;
+            needsRender = true;
+        }
+
+        function connectWebSocket() {
+            try {
+                const ws = new WebSocket(CONFIG.WS_URL);
+                ws.onopen = () => {
+                    connectionStatus.className = 'status-dot connected';
+                    connectionText.textContent = 'Connected';
+                };
+                ws.onmessage = e => {
+                    try {
+                        const data = JSON.parse(e.data);
+                        if (data.type === 'book' || (data.bids && data.asks)) processOrderBookData(data);
+                    } catch {}
+                };
+                ws.onclose = () => {
+                    connectionStatus.className = 'status-dot disconnected';
+                    connectionText.textContent = 'Disconnected';
+                    setTimeout(connectWebSocket, CONFIG.RECONNECT_DELAY);
+                };
+            } catch {
+                if (CONFIG.SIMULATION_MODE) startSimulation();
+            }
+        }
+
+        function generateSimulatedData() {
+            const base = 43250 + Math.random() * 100;
+            const spread = 0.5 + Math.random() * 2;
+            const asks = [], bids = [];
+            let ap = base + spread / 2, bp = base - spread / 2;
+            for (let i = 0; i < 15; i++) {
+                asks.push([ap, Math.random() * 2 + 0.01]);
+                bids.push([bp, Math.random() * 2 + 0.01]);
+                ap += Math.random() * 5 + 0.5;
+                bp -= Math.random() * 5 + 0.5;
+            }
+            return { bids, asks };
+        }
+
+        function startSimulation() {
+            connectionStatus.className = 'status-dot simulated';
+            connectionText.textContent = 'Simulated';
+            setInterval(() => processOrderBookData(generateSimulatedData()), CONFIG.SIMULATION_UPDATE_INTERVAL);
+        }
+
+        function render() {
+            if (needsRender) {
+                renderOrderTable();
+                renderOrderBookHistogram();
+                renderDepthChart();
+                renderBBOChart();
+                needsRender = false;
+            }
+            requestAnimationFrame(render);
+        }
+
+        function updateStatus() {
+            const now = Date.now();
+            const elapsed = (now - lastUpdateTime) / 1000;
+            if (elapsed >= 1) {
+                updateRateEl.textContent = Math.round(updateCounter / elapsed);
+                updateCounter = 0;
+                lastUpdateTime = now;
+            }
+            currentTimeEl.textContent = formatTime(new Date());
+        }
+
+        function init() {
+            setupCanvas(canvasOrderbook, ctxOrderbook);
+            setupCanvas(canvasDepth, ctxDepth);
+            setupCanvas(canvasBBO, ctxBBO);
+            window.addEventListener('resize', () => needsRender = true);
+            render();
+            setInterval(updateStatus, 100);
+            CONFIG.SIMULATION_MODE ? startSimulation() : connectWebSocket();
+        }
+
+        init();
+    </script>
+</body>
+</html>
